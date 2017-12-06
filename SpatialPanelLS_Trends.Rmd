@@ -1,0 +1,55 @@
+---
+title: "Untitled"
+author: "Michael Mann"
+date: "December 4, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+
+library(sf)
+library(plm)
+library(splm)
+library(spdep)
+library(data.table)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##  
+
+
+```{r}
+  load('~/Documents/EliSpatialPanel/spr_panel_wcoords')
+  panel_sp = panel1
+  coordinates(panel_sp)= ~loc.x+loc.y
+  #dt_sf = st_as_sf(panel1, coords = c("loc.x", "loc.y"), crs = '+proj=utm +zone=19 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0', agr = "constant")
+  
+  # TOO BIG
+  #knn8 = knearneigh(panel_sp, k = 8)
+  #save(knn8,file='~/Documents/EliSpatialPanel/knn8.RData')  
+  #load('~/Documents/EliSpatialPanel/knn8.RData') 
+  # knn8 = nb2mat(knn2nb(knn8, row.names = paste(panel_sp$yr,panel_sp$pixID,sep='_')) ) #Error: cannot allocate vector of size 4055.6 Gb
+  
+  # # subsample approach
+  # sample_ids = sample(unique(panel_sp$pixID),15000)
+  # sample_panel_sp = panel_sp[panel_sp$pixID %in% sample_ids & panel_sp$yr == 2000,]  # Limit to one observation per id
+  # sample_knn8 = knearneigh(sample_panel_sp, k = 8)
+  # save(sample_knn8,file='~/Documents/EliSpatialPanel/sample_knn8.RData')  
+  # sample_knn8 = nb2mat(knn2nb(sample_knn8, row.names = paste(sample_panel_sp$yr,sample_panel_sp$pixID,sep='_')) ) 
+
+  # spatial subsample approach
+  sample_ids = panel1$pixID[panel1$loc.x>300000&panel1$loc.x<330000&panel1$loc.y>4900000&panel1$loc.y<4950000]
+  sample_panel_sp = panel_sp[panel_sp$pixID %in% sample_ids & panel_sp$yr == 2000,]  # Limit to one observation per id
+  sample_knn8 = knearneigh(sample_panel_sp, k = 8)
+  sample_knn8 = nb2mat(knn2nb(sample_knn8, row.names = paste(sample_panel_sp$yr,sample_panel_sp$pixID,sep='_')) ) 
+   
+  # set up a panel dataset
+  data_in_plm = pdata.frame(panel_sp@data[panel_sp$pixID %in% sample_ids,], index=c("pixID","yr"),  row.names=TRUE)
+
+  #test on heterogeneous model (separate time series regressions)
+  rwtest(springdoy ~  yr, data = data_in_plm, w=sample_knn8, index = c("pixID", " yr"),model = "within", test='rho')
+ 
+```
+ 
